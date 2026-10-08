@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soil Conductivity DAQ Simulator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --wire-red: #ef4444;
+      --wire-black: #475569;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    .container { max-width: 900px; width: 100%; display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
+    @media(max-width: 768px) { .container { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; color: var(--accent); }
+    p.sub { font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px; }
+    
+    /* Interactive Canvas */
+    canvas { width: 100%; height: 260px; background: #090d16; border-radius: 8px; border: 1px solid #334155; }
+
+    /* Controls */
+    .control-group { margin-top: 15px; }
+    label { font-size: 0.85rem; color: #cbd5e1; display: flex; justify-content: space-between; margin-bottom: 6px; }
+    input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+    
+    /* Status Badge */
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: bold; margin-top: 10px; text-transform: uppercase; }
+    .low { background: #38bdf822; color: #38bdf8; border: 1px solid #38bdf8; }
+    .optimal { background: #22c55e22; color: #22c55e; border: 1px solid #22c55e; }
+    .high { background: #ef444422; color: #ef4444; border: 1px solid #ef4444; }
+
+    /* Meter Display */
+    .meter-box { background: #000; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #334155; margin-bottom: 15px; }
+    .meter-val { font-family: 'Courier New', monospace; font-size: 2.2rem; font-weight: bold; color: #4ade80; text-shadow: 0 0 10px rgba(74,222,128,0.4); }
+    .meter-unit { font-size: 0.8rem; color: #64748b; }
+
+    /* QR Code Panel */
+    .qr-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    #qrcode { background: white; padding: 12px; border-radius: 8px; margin: 15px 0; }
+    .qr-sub { font-size: 0.75rem; color: #94a3b8; word-break: break-all; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Main Simulation Canvas and Controls -->
+    <div class="card">
+      <h1>Soil Conductivity DAQ Simulation</h1>
+      <p class="sub">9V Fixed Boost Loop • 2cm Spacing • 4cm Depth</p>
+      
+      <canvas id="simCanvas"></canvas>
+
+      <div class="control-group">
+        <label>
+          <span>Soil Ion Concentration (Fertilizer / Mineral Salts)</span>
+          <span id="ionValueText">Moderate</span>
+        </label>
+        <input type="range" id="ionSlider" min="0" max="100" value="45">
+      </div>
+
+      <div class="control-group" style="display: flex; gap: 10px; margin-top: 15px;">
+        <button onclick="setPreset(5)" style="flex:1; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Distilled</button>
+        <button onclick="setPreset(25)" style="flex:1; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Low NPK</button>
+        <button onclick="setPreset(50)" style="flex:1; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Balanced</button>
+        <button onclick="setPreset(85)" style="flex:1; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Toxic / Saline</button>
+      </div>
+
+      <div id="statusBadge" class="badge optimal">Optimal Fertility</div>
+    </div>
+
+    <!-- Live Multimeter & QR Code Generator -->
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <div class="card">
+        <div class="meter-box">
+          <div class="meter-unit">AMMETER CURRENT</div>
+          <div class="meter-val" id="mAValue">1.82 mA</div>
+          <div class="meter-unit" id="resValue">Soil R: 4945 Ω</div>
+        </div>
+      </div>
+
+      <div class="card qr-panel">
+        <div style="font-weight: bold; font-size: 0.9rem;">Scan for Mobile Demo</div>
+        <div id="qrcode"></div>
+        <p class="qr-sub" id="currentUrl">Generating QR code...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+    const slider = document.getElementById("ionSlider");
+    const ionValueText = document.getElementById("ionValueText");
+    const mAValue = document.getElementById("mAValue");
+    const resValue = document.getElementById("resValue");
+    const statusBadge = document.getElementById("statusBadge");
+
+    function resize() {
+      canvas.width = canvas.clientWidth * window.devicePixelRatio;
+      canvas.height = canvas.clientHeight * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    resize();
+
+    let offset = 0;
+
+    function draw() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      const val = parseFloat(slider.value);
+      // Rsoil model: Low val = >20k ohms, High val = ~1.8k ohms
+      const rSoil = 22000 / (1 + (val / 10)); 
+      const current_mA = (9.0 / rSoil) * 1000;
+
+      // Update text
+      mAValue.innerText = current_mA.toFixed(2) + " mA";
+      resValue.innerText = "Soil R: " + Math.round(rSoil) + " Ω";
+
+      if (current_mA < 0.5) {
+        statusBadge.className = "badge low";
+        statusBadge.innerText = "Low Nutrients (< 0.5 mA)";
+        ionValueText.innerText = "Nutrient Deficient";
+      } else if (current_mA <= 2.5) {
+        statusBadge.className = "badge optimal";
+        statusBadge.innerText = "Optimal Range (0.5 - 2.5 mA)";
+        ionValueText.innerText = "Healthy / Balanced";
+      } else {
+        statusBadge.className = "badge high";
+        statusBadge.innerText = "Excess Chemicals (> 2.5 mA)";
+        ionValueText.innerText = "Saline / Over-fertilized";
+      }
+
+      // Draw Slurry Beaker
+      ctx.fillStyle = "#334155";
+      ctx.fillRect(w * 0.4, h * 0.45, w * 0.2, h * 0.45);
+      ctx.fillStyle = "#78350f"; // Soil solution color
+      ctx.fillRect(w * 0.42, h * 0.52, w * 0.16, h * 0.35);
+
+      // Draw Copper Probes
+      ctx.fillStyle = "#d97706";
+      ctx.fillRect(w * 0.45, h * 0.25, 6, h * 0.45); // Probe 1
+      ctx.fillRect(w * 0.53, h * 0.25, 6, h * 0.45); // Probe 2
+
+      // Draw Spacer
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(w * 0.43, h * 0.35, w * 0.14, 12);
+
+      // Draw Circuit Loop Wires
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#ef4444";
+      ctx.beginPath();
+      ctx.moveTo(w * 0.15, h * 0.3); // From 9V module
+      ctx.lineTo(w * 0.45 + 3, h * 0.3);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#38bdf8";
+      ctx.beginPath();
+      ctx.moveTo(w * 0.53 + 3, h * 0.3);
+      ctx.lineTo(w * 0.85, h * 0.3); // Into Meter
+      ctx.stroke();
+
+      // Animate Ions in solution
+      offset += current_mA * 0.8;
+      ctx.fillStyle = "#67e8f9";
+      for (let i = 0; i < 6; i++) {
+        let x = (w * 0.45 + 8) + ((i * 12 + offset) % (w * 0.07));
+        let y = h * 0.65 + Math.sin(offset * 0.05 + i) * 6;
+        ctx.beginPath();
+        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      requestAnimationFrame(draw);
+    }
+    draw();
+
+    function setPreset(v) {
+      slider.value = v;
+    }
+
+    // QR Code generation based on current site URL
+    window.addEventListener("DOMContentLoaded", () => {
+      const url = window.location.href.startsWith("http") ? window.location.href : "https://github.com";
+      document.getElementById("currentUrl").innerText = url;
+      new QRCode(document.getElementById("qrcode"), {
+        text: url,
+        width: 120,
+        height: 120,
+        colorDark : "#0f172a",
+        colorLight : "#ffffff"
+      });
+    });
+  </script>
+</body>
+</html>
