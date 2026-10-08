@@ -3,202 +3,227 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Soil Conductivity DAQ Simulator</title>
+  <title>Advanced Soil DAQ Interface</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
-      --bg: #0f172a;
-      --card: #1e293b;
-      --accent: #38bdf8;
+      --bg: #0b1120;
+      --panel: #1e293b;
+      --accent: #10b981;
       --text: #f8fafc;
-      --wire-red: #ef4444;
-      --wire-black: #475569;
+      --grid: #334155;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background: var(--bg); color: var(--text); padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-    .container { max-width: 900px; width: 100%; display: grid; grid-template-columns: 1fr 320px; gap: 20px; }
-    @media(max-width: 768px) { .container { grid-template-columns: 1fr; } }
-    .card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; }
-    h1 { font-size: 1.4rem; margin-bottom: 4px; color: var(--accent); }
-    p.sub { font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 15px; display: flex; flex-direction: column; align-items: center; }
     
-    /* Interactive Canvas */
-    canvas { width: 100%; height: 260px; background: #090d16; border-radius: 8px; border: 1px solid #334155; }
-
+    .header { width: 100%; max-width: 1000px; padding: 15px 20px; background: var(--panel); border-radius: 8px; border-left: 4px solid var(--accent); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); }
+    .header p { font-size: 0.8rem; color: #94a3b8; }
+    
+    .grid-container { display: grid; grid-template-columns: 1fr 300px; gap: 15px; width: 100%; max-width: 1000px; }
+    @media(max-width: 768px) { .grid-container { grid-template-columns: 1fr; } }
+    
+    .card { background: var(--panel); border-radius: 8px; padding: 15px; border: 1px solid var(--grid); }
+    .card-title { font-size: 0.85rem; text-transform: uppercase; color: #94a3b8; margin-bottom: 10px; border-bottom: 1px solid var(--grid); padding-bottom: 5px; }
+    
+    /* Multimeter Display */
+    .meter-display { background: #000; padding: 15px; border-radius: 6px; text-align: center; border: 1px solid #475569; margin-bottom: 15px; }
+    .meter-val { font-family: 'Courier New', monospace; font-size: 2.5rem; font-weight: bold; color: var(--accent); text-shadow: 0 0 10px rgba(16,185,129,0.5); }
+    
     /* Controls */
-    .control-group { margin-top: 15px; }
-    label { font-size: 0.85rem; color: #cbd5e1; display: flex; justify-content: space-between; margin-bottom: 6px; }
+    .control-row { margin-bottom: 15px; }
+    label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; color: #cbd5e1; }
     input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
     
-    /* Status Badge */
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: bold; margin-top: 10px; text-transform: uppercase; }
-    .low { background: #38bdf822; color: #38bdf8; border: 1px solid #38bdf8; }
-    .optimal { background: #22c55e22; color: #22c55e; border: 1px solid #22c55e; }
-    .high { background: #ef444422; color: #ef4444; border: 1px solid #ef4444; }
-
-    /* Meter Display */
-    .meter-box { background: #000; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #334155; margin-bottom: 15px; }
-    .meter-val { font-family: 'Courier New', monospace; font-size: 2.2rem; font-weight: bold; color: #4ade80; text-shadow: 0 0 10px rgba(74,222,128,0.4); }
-    .meter-unit { font-size: 0.8rem; color: #64748b; }
-
-    /* QR Code Panel */
-    .qr-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-    #qrcode { background: white; padding: 12px; border-radius: 8px; margin: 15px 0; }
-    .qr-sub { font-size: 0.75rem; color: #94a3b8; word-break: break-all; }
+    /* Live Terminal Log */
+    .terminal { background: #020617; border-radius: 6px; padding: 10px; font-family: 'Courier New', monospace; font-size: 0.75rem; color: #38bdf8; height: 150px; overflow-y: auto; border: 1px solid #1e293b; }
+    .terminal p { margin-bottom: 4px; }
+    
+    /* Chart Container */
+    .chart-container { width: 100%; height: 250px; background: #0f172a; border-radius: 6px; padding: 10px; }
+    
+    /* QR Code */
+    #qrcode { background: white; padding: 10px; border-radius: 6px; display: inline-block; }
+    .qr-box { text-align: center; margin-top: 10px; }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <!-- Main Simulation Canvas and Controls -->
-    <div class="card">
-      <h1>Soil Conductivity DAQ Simulation</h1>
-      <p class="sub">9V Fixed Boost Loop • 2cm Spacing • 4cm Depth</p>
+  <div class="header">
+    <div>
+      <h1>GNDEC Applied Sensor Lab</h1>
+      <p>Soil Conductivity DAQ Simulation • v2.0</p>
+    </div>
+    <div id="statusDot" style="color: var(--accent); font-size: 0.8rem;">● SYSTEM ONLINE</div>
+  </div>
+
+  <div class="grid-container">
+    
+    <!-- Left Column: Graph & Terminal -->
+    <div style="display: flex; flex-direction: column; gap: 15px;">
+      <div class="card">
+        <div class="card-title">Live Telemetry (Current Flow)</div>
+        <div class="chart-container">
+          <canvas id="liveChart"></canvas>
+        </div>
+      </div>
       
-      <canvas id="simCanvas"></canvas>
-
-      <div class="control-group">
-        <label>
-          <span>Soil Ion Concentration (Fertilizer / Mineral Salts)</span>
-          <span id="ionValueText">Moderate</span>
-        </label>
-        <input type="range" id="ionSlider" min="0" max="100" value="45">
+      <div class="card">
+        <div class="card-title">DAQ Event Log</div>
+        <div class="terminal" id="terminalLog">
+          <p>> Initialize boot sequence...</p>
+          <p>> Probes connected. Awaiting data loop.</p>
+        </div>
       </div>
-
-      <div class="control-group" style="display: flex; gap: 10px; margin-top: 15px;">
-        <button onclick="setPreset(5)" style="flex:1; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Distilled</button>
-        <button onclick="setPreset(25)" style="flex:1; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Low NPK</button>
-        <button onclick="setPreset(50)" style="flex:1; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Balanced</button>
-        <button onclick="setPreset(85)" style="flex:1; padding:8px; background:#334155; color:white; border:none; border-radius:6px; cursor:pointer;">Toxic / Saline</button>
-      </div>
-
-      <div id="statusBadge" class="badge optimal">Optimal Fertility</div>
     </div>
 
-    <!-- Live Multimeter & QR Code Generator -->
-    <div style="display: flex; flex-direction: column; gap: 20px;">
+    <!-- Right Column: Controls & Meter -->
+    <div style="display: flex; flex-direction: column; gap: 15px;">
+      
       <div class="card">
-        <div class="meter-box">
-          <div class="meter-unit">AMMETER CURRENT</div>
-          <div class="meter-val" id="mAValue">1.82 mA</div>
-          <div class="meter-unit" id="resValue">Soil R: 4945 Ω</div>
+        <div class="card-title">Digital Ammeter</div>
+        <div class="meter-display">
+          <div class="meter-val" id="mAValue">0.00 mA</div>
+          <div style="color: #64748b; font-size: 0.8rem; margin-top: 5px;" id="rValue">Resistance: -- Ω</div>
+        </div>
+        
+        <div class="control-row">
+          <label><span>Ion Concentration (Salts/Fertilizer)</span> <span id="ionLbl">45%</span></label>
+          <input type="range" id="ionSlider" min="1" max="100" value="45">
+        </div>
+        <div class="control-row">
+          <label><span>Soil Temperature</span> <span id="tempLbl">22°C</span></label>
+          <input type="range" id="tempSlider" min="5" max="45" value="22">
+        </div>
+        <div class="control-row">
+          <label><span>Probe Spacing</span> <span id="spaceLbl">2.0 cm</span></label>
+          <input type="range" id="spaceSlider" min="10" max="50" value="20"> <!-- 1.0 to 5.0 -->
         </div>
       </div>
 
-      <div class="card qr-panel">
-        <div style="font-weight: bold; font-size: 0.9rem;">Scan for Mobile Demo</div>
+      <div class="card qr-box">
+        <div class="card-title" style="border: none; margin-bottom: 5px;">Scan for Mobile Demo</div>
         <div id="qrcode"></div>
-        <p class="qr-sub" id="currentUrl">Generating QR code...</p>
       </div>
+
     </div>
   </div>
 
   <script>
-    const canvas = document.getElementById("simCanvas");
-    const ctx = canvas.getContext("2d");
-    const slider = document.getElementById("ionSlider");
-    const ionValueText = document.getElementById("ionValueText");
+    // Elements
+    const ionSlider = document.getElementById("ionSlider");
+    const tempSlider = document.getElementById("tempSlider");
+    const spaceSlider = document.getElementById("spaceSlider");
     const mAValue = document.getElementById("mAValue");
-    const resValue = document.getElementById("resValue");
-    const statusBadge = document.getElementById("statusBadge");
+    const rValue = document.getElementById("rValue");
+    const terminalLog = document.getElementById("terminalLog");
+    
+    // Physics Engine Variables
+    let current_mA = 0;
+    let rSoil = 0;
 
-    function resize() {
-      canvas.width = canvas.clientWidth * window.devicePixelRatio;
-      canvas.height = canvas.clientHeight * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    // Chart.js Setup
+    const ctx = document.getElementById('liveChart').getContext('2d');
+    const liveChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: Array(20).fill(''), // 20 data points on X axis
+        datasets: [{
+          label: 'Current (mA)',
+          data: Array(20).fill(0),
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 0 },
+        scales: {
+          y: { min: 0, max: 10, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+          x: { grid: { display: false } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    function addLog(msg) {
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false, hour: "numeric", minute: "numeric", second: "numeric" });
+      const p = document.createElement("p");
+      p.innerText = `[${time}] ${msg}`;
+      terminalLog.appendChild(p);
+      terminalLog.scrollTop = terminalLog.scrollHeight;
     }
-    resize();
 
-    let offset = 0;
+    function calculatePhysics() {
+      const ions = parseInt(ionSlider.value);
+      const tempC = parseInt(tempSlider.value);
+      const spaceCm = parseInt(spaceSlider.value) / 10;
 
-    function draw() {
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
-      ctx.clearRect(0, 0, w, h);
+      // Update Labels
+      document.getElementById("ionLbl").innerText = ions + "%";
+      document.getElementById("tempLbl").innerText = tempC + "°C";
+      document.getElementById("spaceLbl").innerText = spaceCm.toFixed(1) + " cm";
 
-      const val = parseFloat(slider.value);
-      // Rsoil model: Low val = >20k ohms, High val = ~1.8k ohms
-      const rSoil = 22000 / (1 + (val / 10)); 
-      const current_mA = (9.0 / rSoil) * 1000;
+      // Base Resistance based on ions
+      let baseR = 25000 / (1 + (ions / 5));
+      
+      // Distance modifier (further apart = higher resistance)
+      let distanceR = baseR * (spaceCm / 2.0);
+      
+      // Temperature modifier (higher temp = faster ions = lower resistance)
+      // Approx 2% change per degree C from baseline 20C
+      let tempFactor = 1 - ((tempC - 20) * 0.02);
+      if (tempFactor < 0.2) tempFactor = 0.2; // Floor limits
 
-      // Update text
+      rSoil = distanceR * tempFactor;
+      
+      // Calculate final current via Ohm's Law (I = V/R) assuming 9V boosted loop
+      current_mA = (9.0 / rSoil) * 1000;
+
+      // Update UI
       mAValue.innerText = current_mA.toFixed(2) + " mA";
-      resValue.innerText = "Soil R: " + Math.round(rSoil) + " Ω";
-
-      if (current_mA < 0.5) {
-        statusBadge.className = "badge low";
-        statusBadge.innerText = "Low Nutrients (< 0.5 mA)";
-        ionValueText.innerText = "Nutrient Deficient";
-      } else if (current_mA <= 2.5) {
-        statusBadge.className = "badge optimal";
-        statusBadge.innerText = "Optimal Range (0.5 - 2.5 mA)";
-        ionValueText.innerText = "Healthy / Balanced";
-      } else {
-        statusBadge.className = "badge high";
-        statusBadge.innerText = "Excess Chemicals (> 2.5 mA)";
-        ionValueText.innerText = "Saline / Over-fertilized";
-      }
-
-      // Draw Slurry Beaker
-      ctx.fillStyle = "#334155";
-      ctx.fillRect(w * 0.4, h * 0.45, w * 0.2, h * 0.45);
-      ctx.fillStyle = "#78350f"; // Soil solution color
-      ctx.fillRect(w * 0.42, h * 0.52, w * 0.16, h * 0.35);
-
-      // Draw Copper Probes
-      ctx.fillStyle = "#d97706";
-      ctx.fillRect(w * 0.45, h * 0.25, 6, h * 0.45); // Probe 1
-      ctx.fillRect(w * 0.53, h * 0.25, 6, h * 0.45); // Probe 2
-
-      // Draw Spacer
-      ctx.fillStyle = "#0f172a";
-      ctx.fillRect(w * 0.43, h * 0.35, w * 0.14, 12);
-
-      // Draw Circuit Loop Wires
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = "#ef4444";
-      ctx.beginPath();
-      ctx.moveTo(w * 0.15, h * 0.3); // From 9V module
-      ctx.lineTo(w * 0.45 + 3, h * 0.3);
-      ctx.stroke();
-
-      ctx.strokeStyle = "#38bdf8";
-      ctx.beginPath();
-      ctx.moveTo(w * 0.53 + 3, h * 0.3);
-      ctx.lineTo(w * 0.85, h * 0.3); // Into Meter
-      ctx.stroke();
-
-      // Animate Ions in solution
-      offset += current_mA * 0.8;
-      ctx.fillStyle = "#67e8f9";
-      for (let i = 0; i < 6; i++) {
-        let x = (w * 0.45 + 8) + ((i * 12 + offset) % (w * 0.07));
-        let y = h * 0.65 + Math.sin(offset * 0.05 + i) * 6;
-        ctx.beginPath();
-        ctx.arc(x, y, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      requestAnimationFrame(draw);
-    }
-    draw();
-
-    function setPreset(v) {
-      slider.value = v;
+      rValue.innerText = "Resistance: " + Math.round(rSoil) + " Ω";
     }
 
-    // QR Code generation based on current site URL
+    // Chart Update Loop (10 FPS)
+    setInterval(() => {
+      calculatePhysics();
+      
+      // Add slight analog noise/jitter for realism (+/- 1%)
+      let jitter = current_mA * (Math.random() * 0.02 - 0.01);
+      let plotted_mA = current_mA + jitter;
+
+      const dataArr = liveChart.data.datasets[0].data;
+      dataArr.push(plotted_mA);
+      dataArr.shift(); // Remove oldest data point
+      liveChart.update();
+    }, 100);
+
+    // Terminal Logging Loop (Every 2 seconds)
+    setInterval(() => {
+      let status = "NORMAL";
+      if(current_mA < 0.5) status = "LOW_NUTRIENT";
+      if(current_mA > 4.0) status = "HIGH_SALINITY";
+      
+      addLog(`R_SENSE: ${Math.round(rSoil)}Ω | I_OUT: ${current_mA.toFixed(2)}mA | STAT: ${status}`);
+    }, 2000);
+
+    // Generate QR Code on load
     window.addEventListener("DOMContentLoaded", () => {
       const url = window.location.href.startsWith("http") ? window.location.href : "https://github.com";
-      document.getElementById("currentUrl").innerText = url;
       new QRCode(document.getElementById("qrcode"), {
-        text: url,
-        width: 120,
-        height: 120,
-        colorDark : "#0f172a",
-        colorLight : "#ffffff"
+        text: url, width: 120, height: 120, colorDark : "#000000", colorLight : "#ffffff"
       });
     });
+
+    // Initial log
+    setTimeout(() => { addLog("> Sensor polling started..."); }, 1000);
   </script>
 </body>
 </html>
