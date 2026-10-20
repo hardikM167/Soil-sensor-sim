@@ -34,8 +34,20 @@
     
     /* Controls */
     .control-row { margin-bottom: 15px; }
-    label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; color: #cbd5e1; }
+    label.slider-label { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; color: #cbd5e1; }
     input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+    
+    /* Toggle Switch */
+    .toggle-container { display: flex; gap: 10px; margin-top: 5px; }
+    .toggle-container input[type="radio"] { display: none; }
+    .toggle-container label { 
+      flex: 1; text-align: center; padding: 8px; font-size: 0.85rem; font-weight: 600;
+      background: #0f172a; border: 1px solid var(--grid); 
+      border-radius: 4px; cursor: pointer; color: #94a3b8; transition: all 0.2s; 
+    }
+    .toggle-container input[type="radio"]:checked + label {
+      background: rgba(16, 185, 129, 0.15); border-color: var(--accent); color: var(--accent);
+    }
     
     /* Live Terminal Log */
     .terminal { background: #020617; border-radius: 6px; padding: 10px; font-family: 'Courier New', monospace; font-size: 0.75rem; color: #38bdf8; height: 130px; overflow-y: auto; border: 1px solid #1e293b; }
@@ -46,9 +58,10 @@
     
     /* Reference Table */
     .ref-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; text-align: left; margin-top: 5px; }
-    .ref-table th, .ref-table td { border: 1px solid var(--table-border); padding: 6px; }
+    .ref-table th, .ref-table td { border: 1px solid var(--table-border); padding: 8px; }
     .ref-table th { background: #0f172a; color: var(--accent); text-transform: uppercase; }
     .ref-table tr:nth-child(even) { background: #020617; }
+    .target-row { background: rgba(16, 185, 129, 0.1) !important; border-left: 3px solid var(--accent); }
     
     /* QR Code */
     #qrcode { background: white; padding: 10px; border-radius: 6px; display: inline-block; }
@@ -76,43 +89,19 @@
         </div>
       </div>
       
-      <!-- NEW: Calibration Reference Table -->
+      <!-- DYNAMIC Calibration Reference Table -->
       <div class="card">
-        <div class="card-title">Real-World Hardware Calibration (Reference)</div>
+        <div class="card-title">Active Calibration Targets</div>
         <table class="ref-table">
           <thead>
             <tr>
-              <th>Test Sample</th>
-              <th>Current Range (Approx.)</th>
-              <th>Status Meaning</th>
+              <th>Current Range</th>
+              <th>Status</th>
+              <th>Farmer Action Required</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td>Distilled / Pure Water</td>
-              <td>2.0 - 3.0 mA</td>
-              <td>Baseline (Trace Ions)</td>
-            </tr>
-            <tr>
-              <td>RO Filtered Water</td>
-              <td>4.0 - 5.0 mA</td>
-              <td>Low TDS Control</td>
-            </tr>
-            <tr>
-              <td>Standard Garden Soil</td>
-              <td>5.0 - 7.0 mA</td>
-              <td>Normal Minerals</td>
-            </tr>
-            <tr>
-              <td>Organic Compost Soil</td>
-              <td>8.0 - 10.0 mA</td>
-              <td>Optimal Fertile</td>
-            </tr>
-            <tr>
-              <td>Chemical Fertilizer</td>
-              <td>14.0 - 18.0+ mA</td>
-              <td>High Salinity</td>
-            </tr>
+          <tbody id="tableBody">
+            <!-- Injected via JS based on toggle -->
           </tbody>
         </table>
       </div>
@@ -130,23 +119,34 @@
     <div style="display: flex; flex-direction: column; gap: 15px;">
       
       <div class="card">
-        <div class="card-title">Digital Ammeter (8.0V Logic)</div>
+        <div class="card-title">Digital Ammeter (8.0V)</div>
         <div class="meter-display">
           <div class="meter-val" id="mAValue">0.00 mA</div>
           <div style="color: #64748b; font-size: 0.8rem; margin-top: 5px;" id="rValue">Resistance: -- Ω</div>
         </div>
         
+        <!-- NEW: Organic vs Synthetic Toggle -->
         <div class="control-row">
-          <label><span>Ion Concentration (Salts/Fertilizer)</span> <span id="ionLbl">30%</span></label>
+          <div style="font-size: 0.85rem; text-transform: uppercase; color: #94a3b8; margin-bottom: 5px;">Farming Mode Profile</div>
+          <div class="toggle-container">
+            <input type="radio" id="modeOrg" name="farmMode" value="organic" checked>
+            <label for="modeOrg">Organic (Compost)</label>
+            <input type="radio" id="modeSyn" name="farmMode" value="synthetic">
+            <label for="modeSyn">Synthetic (NPK)</label>
+          </div>
+        </div>
+
+        <div class="control-row" style="margin-top: 20px;">
+          <label class="slider-label"><span>Ion Concentration (Salts/Fertilizer)</span> <span id="ionLbl">30%</span></label>
           <input type="range" id="ionSlider" min="0" max="100" value="30">
         </div>
         <div class="control-row">
-          <label><span>Soil Temperature</span> <span id="tempLbl">22°C</span></label>
+          <label class="slider-label"><span>Soil Temperature</span> <span id="tempLbl">22°C</span></label>
           <input type="range" id="tempSlider" min="5" max="45" value="22">
         </div>
         <div class="control-row">
-          <label><span>Probe Spacing</span> <span id="spaceLbl">2.0 cm</span></label>
-          <input type="range" id="spaceSlider" min="10" max="50" value="20"> <!-- 1.0 to 5.0 -->
+          <label class="slider-label"><span>Probe Spacing</span> <span id="spaceLbl">2.0 cm</span></label>
+          <input type="range" id="spaceSlider" min="10" max="50" value="20">
         </div>
       </div>
 
@@ -159,19 +159,45 @@
   </div>
 
   <script>
-    // Elements
     const ionSlider = document.getElementById("ionSlider");
     const tempSlider = document.getElementById("tempSlider");
     const spaceSlider = document.getElementById("spaceSlider");
     const mAValue = document.getElementById("mAValue");
     const rValue = document.getElementById("rValue");
     const terminalLog = document.getElementById("terminalLog");
+    const tableBody = document.getElementById("tableBody");
     
-    // Physics Engine Variables
     let current_mA = 0;
     let rSoil = 0;
+    let farmingMode = "organic"; // Default mode
 
-    // Chart.js Setup (Y-axis max adjusted to 20 for chemical fertilizer range)
+    // Handle Mode Switching
+    document.querySelectorAll('input[name="farmMode"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        farmingMode = e.target.value;
+        addLog(`> SYSTEM OVERRIDE: Switched to ${farmingMode.toUpperCase()} target profile.`);
+        renderTable();
+      });
+    });
+
+    // Render Table Logic
+    function renderTable() {
+      if (farmingMode === "organic") {
+        tableBody.innerHTML = `
+          <tr><td>< 5.0 mA</td><td style="color: #fbbf24;">Low Nutrient</td><td>Apply natural compost.</td></tr>
+          <tr class="target-row"><td>5.0 - 10.0 mA</td><td style="color: var(--accent); font-weight: bold;">Optimal Health</td><td>Perfect balance. Maintain.</td></tr>
+          <tr><td>> 10.5 mA</td><td style="color: #ef4444;">Contamination</td><td>Unnatural salt spike detected. Flush.</td></tr>
+        `;
+      } else {
+        tableBody.innerHTML = `
+          <tr><td>< 10.0 mA</td><td style="color: #fbbf24;">Under-Fertilized</td><td>Apply synthetic NPK/Urea.</td></tr>
+          <tr class="target-row"><td>10.0 - 14.0 mA</td><td style="color: var(--accent); font-weight: bold;">Optimal Yield</td><td>Commercial target reached.</td></tr>
+          <tr><td>> 14.5 mA</td><td style="color: #ef4444;">Toxic Salinity</td><td>Fertilizer burn risk! Stop application.</td></tr>
+        `;
+      }
+    }
+    renderTable(); // Initial load
+
     const ctx = document.getElementById('liveChart').getContext('2d');
     const liveChart = new Chart(ctx, {
       type: 'line',
@@ -213,59 +239,50 @@
       const tempC = parseInt(tempSlider.value);
       const spaceCm = parseInt(spaceSlider.value) / 10;
 
-      // Update Labels
       document.getElementById("ionLbl").innerText = ions + "%";
       document.getElementById("tempLbl").innerText = tempC + "°C";
       document.getElementById("spaceLbl").innerText = spaceCm.toFixed(1) + " cm";
 
-      // NEW REAL-WORLD MAPPING LOGIC (Polynomial fit to match your actual readings)
-      // ions=0 (~2.7mA), ions=10 (~3.8mA, RO), ions=30 (~4.9mA, Garden), ions=70 (~9.3mA, Compost)
-      let base_mA = 2.7 + (ions * 0.05) + (Math.pow(ions, 2) * 0.0009);
-      
-      // Distance modifier (2.0 cm is golden ratio = 1x multiplier)
+      let base_mA = 2.7 + (ions * 0.06) + (Math.pow(ions, 2) * 0.0011);
       let distanceFactor = 2.0 / spaceCm;
-      
-      // Temperature modifier (approx 2% change per degree C from 22C baseline)
       let tempFactor = 1 + ((tempC - 22) * 0.02);
-      if (tempFactor < 0.3) tempFactor = 0.3; // Prevent negative/zero
+      if (tempFactor < 0.3) tempFactor = 0.3; 
 
-      // Apply modifiers
       current_mA = base_mA * distanceFactor * tempFactor;
-      
-      // Calculate Resistance backward from current using 8.0V (nominal 2S battery pack)
       rSoil = (8.0 / (current_mA / 1000));
 
-      // Update UI
       mAValue.innerText = current_mA.toFixed(2) + " mA";
       rValue.innerText = "Resistance: " + Math.round(rSoil) + " Ω";
     }
 
-    // Chart Update Loop (10 FPS)
     setInterval(() => {
       calculatePhysics();
-      
-      // Add slight analog noise/jitter for realism (+/- 1.5%)
       let jitter = current_mA * (Math.random() * 0.03 - 0.015);
       let plotted_mA = current_mA + jitter;
 
       const dataArr = liveChart.data.datasets[0].data;
       dataArr.push(plotted_mA);
-      dataArr.shift(); // Remove oldest data point
+      dataArr.shift(); 
       liveChart.update();
     }, 100);
 
-    // Terminal Logging Loop (Every 2 seconds)
+    // DYNAMIC TERMINAL LOGIC
     setInterval(() => {
-      let status = "BASELINE_WATER";
-      if(current_mA > 3.5) status = "LOW_TDS_RO";
-      if(current_mA > 5.0) status = "NORMAL_GARDEN";
-      if(current_mA > 8.0) status = "OPTIMAL_COMPOST";
-      if(current_mA > 12.0) status = "HIGH_SALINITY";
+      let status = "";
+      
+      if (farmingMode === "organic") {
+        if(current_mA < 5.0) status = "LOW_NUTRIENT";
+        else if(current_mA <= 10.0) status = "OPTIMAL_HEALTH";
+        else status = "CONTAMINATION_WARN";
+      } else {
+        if(current_mA < 10.0) status = "UNDER_FERTILIZED";
+        else if(current_mA <= 14.5) status = "OPTIMAL_YIELD";
+        else status = "TOXIC_SALINITY_WARN";
+      }
       
       addLog(`R_SENSE: ${Math.round(rSoil)}Ω | I_OUT: ${current_mA.toFixed(2)}mA | STAT: ${status}`);
     }, 2000);
 
-    // Generate QR Code on load
     window.addEventListener("DOMContentLoaded", () => {
       const url = window.location.href.startsWith("http") ? window.location.href : "https://github.com";
       new QRCode(document.getElementById("qrcode"), {
@@ -273,8 +290,8 @@
       });
     });
 
-    // Initial log
     setTimeout(() => { addLog("> 8.0V Battery loop initialized..."); }, 1000);
   </script>
 </body>
 </html>
+
